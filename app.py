@@ -15,27 +15,20 @@ load_dotenv()
 app = Flask(__name__)
 
 # Configuration
-if os.getenv('RAILWAY_ENVIRONMENT') == 'production':
-    database_url = os.getenv('DATABASE_URL')
-    if not database_url:
-        raise ValueError("DATABASE_URL environment variable is not set!")
-    
-    # Fix potential postgres:// vs postgresql:// issue
-    if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
-    
-    logger.info(f"Database URL configured: {database_url[:8]}...") # Only log the protocol for security
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'production-secret-key')
+if os.getenv('RENDER'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', '').replace('postgres://', 'postgresql://')
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'prod-secret-key')
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///calendar.db'
     app.config['SECRET_KEY'] = 'dev'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-logger.info(f"Environment: {os.getenv('RAILWAY_ENVIRONMENT', 'development')}")
+logger.info(f"Environment: {os.getenv('RENDER', 'development')}")
 logger.info(f"Port: {os.getenv('PORT', '3001')}")
 logger.info(f"Database configured: {'Yes' if app.config['SQLALCHEMY_DATABASE_URI'] else 'No'}")
+
+db = SQLAlchemy(app)
 
 CATEGORIES = {
     'conference': {'name': 'Conferences', 'color': 'blue'},
@@ -56,7 +49,7 @@ class Event(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Only create tables in development
-if os.getenv('RAILWAY_ENVIRONMENT') != 'production':
+if not os.getenv('RENDER'):
     with app.app_context():
         db.drop_all()  # Only drop tables in development
         db.create_all()
@@ -64,8 +57,6 @@ else:
     # In production, just create tables if they don't exist
     with app.app_context():
         db.create_all()
-
-db = SQLAlchemy(app)
 
 @app.route('/')
 def index():
@@ -155,5 +146,5 @@ def delete_event(event_id):
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 3001))
-    debug = os.getenv('RAILWAY_ENVIRONMENT') != 'production'
+    debug = not os.getenv('RENDER')
     app.run(debug=debug, host='0.0.0.0', port=port)
