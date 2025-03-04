@@ -39,9 +39,15 @@ class Event(db.Model):
     category = db.Column(db.String(20), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-with app.app_context():
-    db.drop_all()  # Temporarily drop tables to update schema
-    db.create_all()
+# Only create tables in development
+if os.getenv('RAILWAY_ENVIRONMENT') != 'production':
+    with app.app_context():
+        db.drop_all()  # Only drop tables in development
+        db.create_all()
+else:
+    # In production, just create tables if they don't exist
+    with app.app_context():
+        db.create_all()
 
 @app.route('/')
 def index():
