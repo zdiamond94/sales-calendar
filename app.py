@@ -3,6 +3,11 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -11,13 +16,20 @@ app = Flask(__name__)
 
 # Configuration
 if os.getenv('RAILWAY_ENVIRONMENT') == 'production':
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', '')
+    database_url = os.getenv('DATABASE_URL', '')
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    logger.info(f"Using database URL: {database_url}")
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///calendar.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SECRET_KEY'] = 'dev'
+
+logger.info(f"Environment: {os.getenv('RAILWAY_ENVIRONMENT', 'development')}")
+logger.info(f"Database URL configured: {'Yes' if app.config['SQLALCHEMY_DATABASE_URI'] else 'No'}")
 
 db = SQLAlchemy(app)
 
