@@ -16,7 +16,14 @@ app = Flask(__name__)
 
 # Configuration
 if os.getenv('RENDER'):
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', '').replace('postgres://', 'postgresql://')
+    # Ensure we have a valid database URL
+    database_url = os.getenv('DATABASE_URL')
+    if not database_url:
+        database_url = 'sqlite:///calendar.db'  # Fallback to SQLite if no URL provided
+    elif database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://')
+    
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'prod-secret-key')
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///calendar.db'
